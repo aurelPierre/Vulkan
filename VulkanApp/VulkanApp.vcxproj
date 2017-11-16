@@ -132,10 +132,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="Device.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="RenderPass.cpp" />
+    <ClCompile Include="SwapChain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="Device.h" />
     <ClInclude Include="FileOutput.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="LoggerLevel.h" />
@@ -143,8 +147,10 @@
     <ClInclude Include="NonCopyable.h" />
     <ClInclude Include="NullOutput.h" />
     <ClInclude Include="OutputLevelRunTimeSwitch.h" />
+    <ClInclude Include="RenderPass.h" />
     <ClInclude Include="Singleton.h" />
     <ClInclude Include="StdOutput.h" />
+    <ClInclude Include="SwapChain.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FragmentShader.frag" />

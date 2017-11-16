@@ -8,11 +8,7 @@
 [ INFO ] 	VK_KHX_external_memory_capabilities
 [ INFO ] 	VK_KHX_external_semaphore_capabilities
 [ INFO ] 	VK_EXT_display_surface_counter
-
-[ INFO ] required instance extensions:
-[ INFO ] 	available	VK_KHR_surface
-[ INFO ] 	available	VK_KHR_win32_surface
-
+[ INFO ] required instance extensions not supported:
 [ INFO ] available device extensions:
 [ INFO ] 	VK_KHR_swapchain
 [ INFO ] 	VK_KHR_descriptor_update_template
@@ -42,6 +38,5 @@
 [ INFO ] 	VK_NV_geometry_shader_passthrough
 [ INFO ] 	VK_NVX_device_generated_commands
 [ INFO ] 	VK_NVX_multiview_per_view_attributes
-[ ERROR ] test is not supported
-[ ERROR ] failed to find a suitable GPU
-(c:\users\a.pierre\documents\vulkanapp\vulkanapp\app.cpp:133)
+[ INFO ] required device extensions not supported:
+[ INFO ] rating 33768	GeForce GTX 1060
