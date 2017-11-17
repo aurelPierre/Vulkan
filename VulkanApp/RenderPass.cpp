@@ -2,10 +2,10 @@
 
 #include "Logging.h"
 
-void RenderPass::init(const Device& device, const SwapChain& swapChain)
+void RenderPass::init(const Device& device, VkFormat format, VkExtent2D extent)
 {
-	createRenderPass(device, swapChain);
-	createGraphicsPipeline(device, swapChain);
+	createRenderPass(device, format);
+	createGraphicsPipeline(device, extent);
 }
 
 void RenderPass::clean(const Device& device)
@@ -32,10 +32,10 @@ std::vector<char> RenderPass::readFile(const std::string & filename)
 	return buffer;
 }
 
-void RenderPass::createRenderPass(const Device& device, const SwapChain& swapChain)
+void RenderPass::createRenderPass(const Device& device, VkFormat format)
 {
 	VkAttachmentDescription colorAttachment = {};
-	colorAttachment.format = swapChain.getFormat();
+	colorAttachment.format = format;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -75,7 +75,7 @@ void RenderPass::createRenderPass(const Device& device, const SwapChain& swapCha
 		THROW("failed to create render pass with error: " + result)
 }
 
-void RenderPass::createGraphicsPipeline(const Device& device, const SwapChain& swapChain)
+void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 {
 	auto vertShaderCode = readFile("vert.spv");
 	auto fragShaderCode = readFile("frag.spv");
@@ -112,14 +112,14 @@ void RenderPass::createGraphicsPipeline(const Device& device, const SwapChain& s
 	VkViewport viewport = {};
 	viewport.x = 0.f;
 	viewport.y = 0.f;
-	viewport.width = static_cast<float>(swapChain.getExtent().width);
-	viewport.height = static_cast<float>(swapChain.getExtent().height);
+	viewport.width = static_cast<float>(extent.width);
+	viewport.height = static_cast<float>(extent.height);
 	viewport.minDepth = 0.f;
 	viewport.maxDepth = 1.f;
 
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = swapChain.getExtent();
+	scissor.extent = extent;
 
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;

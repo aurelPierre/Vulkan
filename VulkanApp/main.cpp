@@ -1,6 +1,8 @@
 #include "App.h"
 #include "Singleton.h"
 
+#include "Logging.h"
+
 int main()
 {
 	try {

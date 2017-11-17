@@ -10,14 +10,7 @@
 
 #include "NonCopyable.h"
 #include "Device.h"
-#include "SwapChain.h"
-#include "RenderPass.h"
-
-#ifndef _DEBUG
-	#define LOGGING_DISABLE
-#endif
-
-#include "Logging.h"
+#include "Renderer.h"
 
 typedef unsigned int uint;
 
@@ -40,21 +33,14 @@ namespace core
 		VkSurfaceKHR _surface;
 
 		Device _device;
-		SwapChain _swapChain;
-		RenderPass _renderPass;
-		
-		VkSemaphore _imageAvailableSemaphore;
-		VkSemaphore _renderFinishedSemaphore;
+		Renderer _renderer;
 
 		void initWindow();
 		void initVulkan();
 		void createInstance();
 		void createSurface();
 
-		void createSemaphores();
-
 		void loop();
-		void drawFrame();
 		void clean();
 	};
 }

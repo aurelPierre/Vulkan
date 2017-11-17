@@ -135,7 +135,7 @@
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RenderPass.cpp" />
-    <ClCompile Include="SwapChain.cpp" />
+    <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
@@ -150,7 +150,7 @@
     <ClInclude Include="RenderPass.h" />
     <ClInclude Include="Singleton.h" />
     <ClInclude Include="StdOutput.h" />
-    <ClInclude Include="SwapChain.h" />
+    <ClInclude Include="Renderer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FragmentShader.frag" />

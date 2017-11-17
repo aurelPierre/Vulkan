@@ -4,6 +4,8 @@
 #include <map>
 #include <set>
 
+#include "Logging.h"
+
 namespace core
 {
 	void App::run()
@@ -27,10 +29,7 @@ namespace core
 		createInstance();
 		createSurface();
 		_device.init(_vkInstance, _surface);
-		_swapChain.init(_device, _surface);
-		_renderPass.init(_device, _swapChain);
-		_swapChain.initBuffers(_device, _renderPass.getRenderPass(), _renderPass.getPipeline());
-		createSemaphores();
+		_renderer.init(_device, _surface);
 	}
 
 	void App::createInstance()
@@ -89,78 +88,19 @@ namespace core
 			THROW("failed to create window surface with error: " + result)
 	}
 
-	void App::createSemaphores()
-	{
-		VkSemaphoreCreateInfo semaphoreInfo = {};
-		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-		VkResult result = vkCreateSemaphore(_device.getDevice(), &semaphoreInfo, nullptr, &_imageAvailableSemaphore);
-		if (result != VK_SUCCESS)
-			THROW("failed to create semaphore with error: " + result)
-
-		result = vkCreateSemaphore(_device.getDevice(), &semaphoreInfo, nullptr, &_renderFinishedSemaphore);
-		if (result != VK_SUCCESS)
-			THROW("failed to create semaphore with error: " + result)
-	}
-
 	void App::loop()
 	{
 		while (!glfwWindowShouldClose(_window)) {
 			glfwPollEvents();
-			drawFrame();
+			_renderer.draw(_device);
 		}
 
 		vkDeviceWaitIdle(_device.getDevice());
 	}
 
-	void App::drawFrame()
-	{
-		vkQueueWaitIdle(_device.getPresentQueue());
-
-		uint32_t imageIndex;
-		vkAcquireNextImageKHR(_device.getDevice(), _swapChain.getSwapchainKHR(), std::numeric_limits<uint64_t>::max(), _imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-		VkSemaphore waitSemaphores[] = { _imageAvailableSemaphore };
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitSemaphores;
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &_swapChain.getCommandBuffer(imageIndex);
-
-		VkSemaphore signalSemaphores[] = { _renderFinishedSemaphore };
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = signalSemaphores;
-
-		VkResult result = vkQueueSubmit(_device.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-		if (result != VK_SUCCESS)
-			THROW("failed to submit draw command buffer with error: " + result)
-
-		VkPresentInfoKHR presentInfo = {};
-		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = signalSemaphores;
-
-		VkSwapchainKHR swapChains[] = { _swapChain.getSwapchainKHR() };
-		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = swapChains;
-		presentInfo.pImageIndices = &imageIndex;
-		presentInfo.pResults = nullptr;
-
-		vkQueuePresentKHR(_device.getPresentQueue(), &presentInfo);
-	}
-
 	void App::clean()
 	{
-		vkDestroySemaphore(_device.getDevice(), _renderFinishedSemaphore, nullptr);
-		vkDestroySemaphore(_device.getDevice(), _imageAvailableSemaphore, nullptr);
-
-		_swapChain.cleanBuffers(_device);
-		_renderPass.clean(_device);
-		_swapChain.clean(_device);
+		_renderer.clean(_device);
 		_device.clean();
 
 		vkDestroySurfaceKHR(_vkInstance, _surface, nullptr);

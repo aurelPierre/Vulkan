@@ -38,7 +38,6 @@ public:
 	VkQueue getPresentQueue() const { return _presentQueue; }
 
 private:
-
 	const std::array<const char*, 1> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};

@@ -1,3 +1,3 @@
-C:\Users\a.pierre\source\repos\Vulkan\glslangValidator.exe -V C:\Users\a.pierre\source\repos\Vulkan\VulkanApp\VertexShader.vert
-C:\Users\a.pierre\source\repos\Vulkan\glslangValidator.exe -V C:\Users\a.pierre\source\repos\Vulkan\VulkanApp\FragmentShader.frag
+%cd%\..\glslangValidator.exe -V %cd%\VertexShader.vert
+%cd%\..\glslangValidator.exe -V %cd%\FragmentShader.frag
 exit 0
