@@ -1,9 +1,18 @@
 #include "Renderer.h"
 
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
+
+#include "App.h"
 #include "Logging.h"
 
 void Renderer::init(const Device& device, VkSurfaceKHR surface)
 {
+	vkGetDeviceQueue(device.getDevice(), device.getIndices().presentFamily, 0, &_presentQueue);
+	vkGetDeviceQueue(device.getDevice(), device.getIndices().presentFamily, 0, &_graphicsQueue);
+
 	createSwapChain(device, surface);
 	_renderPass.init(device, _swapChainImageFormat, _swapChainExtent);
 	initImages(device);
@@ -14,6 +23,10 @@ void Renderer::initImages(const Device& device)
 	createImageViews(device);
 	createFramebuffers(device);
 	createCommandPool(device);
+	createVertexBuffer(device);
+	createIndexBuffer(device);
+	createUniformBuffer(device);
+	createDescriptorPool(device);
 	createCommandBuffers(device);
 
 	VkSemaphoreCreateInfo semaphoreInfo = {};
@@ -33,6 +46,15 @@ void Renderer::clean(const Device& device)
 	vkDestroySemaphore(device.getDevice(), _renderFinishedSemaphore, nullptr);
 	vkDestroySemaphore(device.getDevice(), _imageAvailableSemaphore, nullptr);
 
+	vkDestroyBuffer(device.getDevice(), _uniformBuffer, nullptr);
+	vkFreeMemory(device.getDevice(), _uniformBufferMemory, nullptr);
+
+	vkDestroyBuffer(device.getDevice(), _indexBuffer, nullptr);
+	vkFreeMemory(device.getDevice(), _indexBufferMemory, nullptr);
+
+	vkDestroyBuffer(device.getDevice(), _vertexBuffer, nullptr);
+	vkFreeMemory(device.getDevice(), _vertexBufferMemory, nullptr);
+
 	vkDestroyCommandPool(device.getDevice(), _commandPool, nullptr);
 
 	for (auto& image : _images)
@@ -44,14 +66,44 @@ void Renderer::clean(const Device& device)
 		vkDestroyImageView(device.getDevice(), image._imageView, nullptr);
 
 	vkDestroySwapchainKHR(device.getDevice(), _swapChain, nullptr);
+	_images.clear();
+}
+
+void Renderer::recreate(const Device& device, VkSurfaceKHR surface)
+{
+	vkDeviceWaitIdle(device.getDevice());
+	clean(device);
+	init(device, surface);
+}
+
+void Renderer::update(const Device& device, float deltaTime)
+{
+	static float l = 0.f;
+	l += deltaTime * 100.f;
+
+	RenderPass::UniformBufferObject ubo = {};
+	ubo.model = glm::rotate(glm::mat4(1.f), l * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+	ubo.view = glm::lookAt(glm::vec3(1.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+	ubo.proj = glm::perspective(glm::radians(90.f), (float)_swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.f);
+	ubo.proj[1][1] *= -1;
+
+	void* data;
+	vkMapMemory(device.getDevice(), _uniformBufferMemory, 0, sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+	vkUnmapMemory(device.getDevice(), _uniformBufferMemory);
 }
 
 void Renderer::draw(const Device& device)
 {
-	vkQueueWaitIdle(device.getPresentQueue());
+	vkQueueWaitIdle(_presentQueue);
 
 	uint32_t imageIndex;
-	vkAcquireNextImageKHR(device.getDevice(), _swapChain, std::numeric_limits<uint64_t>::max(), _imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(device.getDevice(), _swapChain, std::numeric_limits<uint64_t>::max(), _imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+		util::Singleton<core::App>::instance().resize();
+		return;
+	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+		THROW("failed to acquire swap chain image with error: " + result)
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -68,7 +120,7 @@ void Renderer::draw(const Device& device)
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	VkResult result = vkQueueSubmit(device.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+	result = vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 	if (result != VK_SUCCESS)
 		THROW("failed to submit draw command buffer with error: " + result)
 
@@ -83,12 +135,16 @@ void Renderer::draw(const Device& device)
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
 
-	vkQueuePresentKHR(device.getPresentQueue(), &presentInfo);
+	result = vkQueuePresentKHR(_presentQueue, &presentInfo);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		util::Singleton<core::App>::instance().resize();
+	else if(result != VK_SUCCESS)
+		THROW("failed to present swap chain image with error: " + result)
 }
 
 void Renderer::createSwapChain(const Device& device, VkSurfaceKHR surface)
 {
-	Device::SwapChainSupportDetails swapChainSupport = device.getSwapChainSupportDetails();
+	Device::SwapChainSupportDetails swapChainSupport = device.querySwapChainSupport(device.getPhysicalDevice(), surface);
 
 	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport._formats);
 	VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport._presentModes);
@@ -238,13 +294,141 @@ void Renderer::createCommandBuffers(const Device& device)
 
 		vkCmdBeginRenderPass(_images[i]._commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(_images[i]._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipeline());
-		vkCmdDraw(_images[i]._commandBuffer, 3, 1, 0, 0);
+
+		VkBuffer vertexBuffers[] = { _vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(_images[i]._commandBuffer, 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(_images[i]._commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+		vkCmdDrawIndexed(_images[i]._commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(_images[i]._commandBuffer);
 
 		result = vkEndCommandBuffer(_images[i]._commandBuffer);
 		if (result != VK_SUCCESS)
 			THROW("failed to record command buffer with error: " + result)
 	}
+}
+
+void Renderer::createUniformBuffer(const Device& device)
+{
+	VkDeviceSize bufferSize = sizeof(RenderPass::UniformBufferObject);
+	createBuffer(device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _uniformBuffer, _uniformBufferMemory);
+}
+
+void Renderer::createDescriptorPool(const Device& device)
+{
+
+}
+
+void Renderer::createIndexBuffer(const Device& device)
+{
+	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory staginBufferMemory;
+	createBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, staginBufferMemory);
+
+	void* data;
+	vkMapMemory(device.getDevice(), staginBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
+	vkUnmapMemory(device.getDevice(), staginBufferMemory);
+
+	createBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+				_indexBuffer, _indexBufferMemory);
+
+	copyBuffer(device, stagingBuffer, _indexBuffer, bufferSize);
+
+	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.getDevice(), staginBufferMemory, nullptr);
+}
+
+void Renderer::createVertexBuffer(const Device& device)
+{
+	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory staginBufferMemory;
+	createBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT 
+				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, staginBufferMemory);
+
+	void* data;
+	vkMapMemory(device.getDevice(), staginBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+	vkUnmapMemory(device.getDevice(), staginBufferMemory);
+
+	createBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+				, _vertexBuffer, _vertexBufferMemory);
+
+	copyBuffer(device, stagingBuffer, _vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.getDevice(), staginBufferMemory, nullptr);
+}
+
+void Renderer::createBuffer(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, 
+							VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory)
+{
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkResult result = vkCreateBuffer(device.getDevice(), &bufferInfo, nullptr, &buffer);
+	if (result != VK_SUCCESS)
+		THROW("failed to create vertex buffer with error: " + result)
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(device.getDevice(), buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = device.findMemoryType(memRequirements.memoryTypeBits, properties);
+	
+	result = vkAllocateMemory(device.getDevice(), &allocInfo, nullptr, &memory);
+	if (result != VK_SUCCESS)
+		THROW("failed to allocate vertex buffer memory with errror: " + result)
+
+	vkBindBufferMemory(device.getDevice(), buffer, memory, 0);
+}
+
+void Renderer::copyBuffer(const Device& device, VkBuffer src, VkBuffer dst, VkDeviceSize size)
+{
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = _commandPool;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device.getDevice(), &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion = {};
+	copyRegion.srcOffset = 0;
+	copyRegion.dstOffset = 0;
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(_graphicsQueue);
+
+	vkFreeCommandBuffers(device.getDevice(), _commandPool, 1, &commandBuffer);
 }
 
 VkSurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -279,7 +463,9 @@ VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR & capabilit
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
 		return capabilities.currentExtent;
 	else {
-		VkExtent2D actualExtent = { 800, 600 };
+		int width, height;
+		util::Singleton<core::App>::instance().getWindowSize(width, height);
+		VkExtent2D actualExtent = { width, height };
 
 		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
 		actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);

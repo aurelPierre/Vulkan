@@ -5,6 +5,7 @@
 void RenderPass::init(const Device& device, VkFormat format, VkExtent2D extent)
 {
 	createRenderPass(device, format);
+	createDescriptorSetLayout(device);
 	createGraphicsPipeline(device, extent);
 }
 
@@ -12,6 +13,7 @@ void RenderPass::clean(const Device& device)
 {
 	vkDestroyPipeline(device.getDevice(), _graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(device.getDevice(), _pipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(device.getDevice(), _descriptorSetLayout, nullptr);
 	vkDestroyRenderPass(device.getDevice(), _renderPass, nullptr);
 }
 
@@ -75,6 +77,25 @@ void RenderPass::createRenderPass(const Device& device, VkFormat format)
 		THROW("failed to create render pass with error: " + result)
 }
 
+void RenderPass::createDescriptorSetLayout(const Device& device)
+{
+	VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uboLayoutBinding;
+
+	VkResult result = vkCreateDescriptorSetLayout(device.getDevice(), &layoutInfo, nullptr, &_descriptorSetLayout);
+	if(result != VK_SUCCESS)
+		THROW("failed to create descriptor set layout with error: " + result)
+}
+
 void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 {
 	auto vertShaderCode = readFile("vert.spv");
@@ -97,12 +118,15 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
+	auto bindingDescription = Vertex::getBindingDescription();
+	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -184,8 +208,8 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pSetLayouts = nullptr;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout;
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = 0;
 

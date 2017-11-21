@@ -3,11 +3,17 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <chrono>
 
 #include "Logging.h"
 
 namespace core
 {
+	void App::getWindowSize(int& width, int& height)
+	{
+		glfwGetWindowSize(_window, &width, &height);
+	}
+
 	void App::run()
 	{
 		initWindow();
@@ -16,12 +22,29 @@ namespace core
 		clean();
 	}
 
+	void App::onWindowResized(GLFWwindow* window, int width, int height)
+	{
+		if (width == 0 || height == 0)
+			return;
+
+		App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+		app->resize();
+	}
+
+	void App::resize()
+	{
+		_renderer.recreate(_device, _surface);
+	}
+
 	void App::initWindow()
 	{
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 		_window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+
+		glfwSetWindowUserPointer(_window, this);
+		glfwSetWindowSizeCallback(_window, App::onWindowResized);
 	}
 
 	void App::initVulkan()
@@ -90,9 +113,32 @@ namespace core
 
 	void App::loop()
 	{
+		uint fps = 0;
+		float second = 0.f;
+		float deltaTime;
+
+		auto start = std::chrono::high_resolution_clock::now();
+		auto end = std::chrono::high_resolution_clock::now();
+
 		while (!glfwWindowShouldClose(_window)) {
+			deltaTime = std::chrono::duration<float>(end - start).count();
+			second += deltaTime;
+			++fps;
+
+			if (second > 1.f)
+			{
+				LOG(LogVoid, "FPS: " + std::to_string(fps));
+				second = 0.f;
+				fps = 0;
+			}
+
+			start = std::chrono::high_resolution_clock::now();
+			
 			glfwPollEvents();
+			_renderer.update(_device, deltaTime);
 			_renderer.draw(_device);
+
+			end = std::chrono::high_resolution_clock::now();
 		}
 
 		vkDeviceWaitIdle(_device.getDevice());

@@ -31,12 +31,12 @@ public:
 	void clean();
 
 	VkDevice getDevice() const { return _device; }
+	VkPhysicalDevice getPhysicalDevice() const { return _physicalDevice; }
 	const QueueFamilyIndices& getIndices() const { return _indices; }
 	const SwapChainSupportDetails& getSwapChainSupportDetails() const { return _swapChainSupportDetails; }
 
-	VkQueue getGraphicsQueue() const { return _graphicsQueue; }
-	VkQueue getPresentQueue() const { return _presentQueue; }
-
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice, VkSurfaceKHR) const;
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 private:
 	const std::array<const char*, 1> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -48,14 +48,10 @@ private:
 	bool isDeviceSuitable(VkPhysicalDevice, VkSurfaceKHR);
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice, VkSurfaceKHR);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice);
-	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice, VkSurfaceKHR);
 
 	VkPhysicalDevice _physicalDevice;
 	VkDevice _device;
 	QueueFamilyIndices _indices;
 	SwapChainSupportDetails _swapChainSupportDetails;
-
-	VkQueue _graphicsQueue;
-	VkQueue _presentQueue;
 };
 

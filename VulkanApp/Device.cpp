@@ -91,9 +91,6 @@ void Device::createLogicalDevice(VkInstance instance)
 	VkResult result = vkCreateDevice(_physicalDevice, &createInfo, nullptr, &_device);
 	if (result != VK_SUCCESS)
 		THROW("failed to create logical device with error :" + result)
-
-	vkGetDeviceQueue(_device, _indices.graphicsFamily, 0, &_graphicsQueue);
-	vkGetDeviceQueue(_device, _indices.presentFamily, 0, &_presentQueue);
 }
 
 bool Device::isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
@@ -163,7 +160,7 @@ bool Device::checkDeviceExtensionSupport(VkPhysicalDevice device)
 	return requiredExtensions.empty();
 }
 
-Device::SwapChainSupportDetails Device::querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface)
+Device::SwapChainSupportDetails Device::querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) const
 {
 	SwapChainSupportDetails details;
 
@@ -184,4 +181,16 @@ Device::SwapChainSupportDetails Device::querySwapChainSupport(VkPhysicalDevice d
 	}
 
 	return details;
+}
+
+uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
+{
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memProperties);
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i)
+		if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			return i;
+
+	THROW("failed to find suitable memory type");
 }

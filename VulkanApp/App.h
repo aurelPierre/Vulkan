@@ -25,9 +25,14 @@ namespace core
 		App() = default;
 		~App() = default;
 
+		void getWindowSize(int& window, int& height);
+		void resize();
+
 		void run();
 
 	private:
+		static void onWindowResized(GLFWwindow*, int width, int height);
+
 		VkInstance	_vkInstance;
 		GLFWwindow*	_window;
 		VkSurfaceKHR _surface;
