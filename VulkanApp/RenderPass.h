@@ -51,6 +51,8 @@ public:
 
 	VkRenderPass getRenderPass() const { return _renderPass; }
 	VkPipeline getPipeline() const { return _graphicsPipeline; }
+	VkPipelineLayout getPipelineLayout() const { return _pipelineLayout; }
+	VkDescriptorSetLayout getDescriptorSetLayout() const { return _descriptorSetLayout; }
 
 private:
 	static std::vector<char> readFile(const std::string& filename);

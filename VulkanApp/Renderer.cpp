@@ -27,6 +27,7 @@ void Renderer::initImages(const Device& device)
 	createIndexBuffer(device);
 	createUniformBuffer(device);
 	createDescriptorPool(device);
+	createDescriptorSet(device);
 	createCommandBuffers(device);
 
 	VkSemaphoreCreateInfo semaphoreInfo = {};
@@ -45,6 +46,8 @@ void Renderer::clean(const Device& device)
 {
 	vkDestroySemaphore(device.getDevice(), _renderFinishedSemaphore, nullptr);
 	vkDestroySemaphore(device.getDevice(), _imageAvailableSemaphore, nullptr);
+
+	vkDestroyDescriptorPool(device.getDevice(), _descriptorPool, nullptr);
 
 	vkDestroyBuffer(device.getDevice(), _uniformBuffer, nullptr);
 	vkFreeMemory(device.getDevice(), _uniformBufferMemory, nullptr);
@@ -79,7 +82,7 @@ void Renderer::recreate(const Device& device, VkSurfaceKHR surface)
 void Renderer::update(const Device& device, float deltaTime)
 {
 	static float l = 0.f;
-	l += deltaTime * 100.f;
+	l += deltaTime;
 
 	RenderPass::UniformBufferObject ubo = {};
 	ubo.model = glm::rotate(glm::mat4(1.f), l * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
@@ -299,6 +302,8 @@ void Renderer::createCommandBuffers(const Device& device)
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(_images[i]._commandBuffer, 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(_images[i]._commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindDescriptorSets(_images[i]._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipelineLayout(), 0, 1,
+			&_descriptorSet, 0, nullptr);
 
 		vkCmdDrawIndexed(_images[i]._commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(_images[i]._commandBuffer);
@@ -318,7 +323,51 @@ void Renderer::createUniformBuffer(const Device& device)
 
 void Renderer::createDescriptorPool(const Device& device)
 {
+	VkDescriptorPoolSize poolSize = {};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = 1;
 
+	VkDescriptorPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = 1;
+
+	VkResult result = vkCreateDescriptorPool(device.getDevice(), &poolInfo, nullptr, &_descriptorPool);
+	if(result != VK_SUCCESS)
+		THROW("failed to create descriptor pool with error: " + result)
+}
+
+void Renderer::createDescriptorSet(const Device& device)
+{
+	VkDescriptorSetLayout layouts[] = { _renderPass.getDescriptorSetLayout() };
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = _descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = layouts;
+
+	VkResult result = vkAllocateDescriptorSets(device.getDevice(), &allocInfo, &_descriptorSet);
+	if (result != VK_SUCCESS)
+		THROW("failed to allocate descriptor set with error: " + result)
+
+	VkDescriptorBufferInfo bufferInfo = {};
+	bufferInfo.buffer = _uniformBuffer;
+	bufferInfo.offset = 0;
+	bufferInfo.range = sizeof(RenderPass::UniformBufferObject);
+
+	VkWriteDescriptorSet descriptorWrite = {};
+	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrite.dstSet = _descriptorSet;
+	descriptorWrite.dstBinding = 0;
+	descriptorWrite.dstArrayElement = 0;
+	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrite.descriptorCount = 1;
+	descriptorWrite.pBufferInfo = &bufferInfo;
+	descriptorWrite.pImageInfo = nullptr;
+	descriptorWrite.pTexelBufferView = nullptr;
+
+	vkUpdateDescriptorSets(device.getDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
 void Renderer::createIndexBuffer(const Device& device)

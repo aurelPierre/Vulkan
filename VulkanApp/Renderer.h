@@ -57,6 +57,7 @@ private:
 	
 	void createUniformBuffer(const Device&);
 	void createDescriptorPool(const Device&);
+	void createDescriptorSet(const Device&);
 	void createIndexBuffer(const Device&);
 	void createVertexBuffer(const Device&);
 	void createBuffer(const Device&, VkDeviceSize, VkBufferUsageFlags, VkMemoryPropertyFlags, VkBuffer&, VkDeviceMemory&);
@@ -83,6 +84,9 @@ private:
 
 	VkBuffer _uniformBuffer;
 	VkDeviceMemory _uniformBufferMemory;
+
+	VkDescriptorPool _descriptorPool;
+	VkDescriptorSet _descriptorSet;
 
 	VkQueue _graphicsQueue;
 	VkQueue _presentQueue;
