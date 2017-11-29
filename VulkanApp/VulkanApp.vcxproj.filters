@@ -82,10 +82,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmentShader.frag">
+    <None Include="shaders\FragmentShader.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="VertexShader.vert">
+    <None Include="shaders\VertexShader.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

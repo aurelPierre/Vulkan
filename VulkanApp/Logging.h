@@ -22,7 +22,7 @@ LOGGING_DEFINE_OUTPUT(util::log::NullOutput)
 
 LOGGING_DEFINE_SEVERITIES_MASK("111111")
 
-LOGGING_DEFINE_OUTPUT(util::log::OutputLevelRunTimeSwitch<util::log::StdOutput>)
+LOGGING_DEFINE_OUTPUT(util::log::OutputLevelRunTimeSwitch<util::log::FileOutput>)
 
 #endif
 

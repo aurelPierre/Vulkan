@@ -1,3 +1,4 @@
-%cd%\..\glslangValidator.exe -V %cd%\VertexShader.vert
-%cd%\..\glslangValidator.exe -V %cd%\FragmentShader.frag
+%cd%\shaders\glslangValidator.exe -o defaultVert.spv -V %cd%\shaders\VertexShader.vert
+%cd%\shaders\glslangValidator.exe -o defaultFrag.spv -V %cd%\shaders\FragmentShader.frag
+move %cd%\*.spv %cd%\shaders\compiled\
 exit 0

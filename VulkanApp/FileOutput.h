@@ -11,7 +11,7 @@ namespace util::log
 	{
 	public:
 		FileOutput() : _os(&_fb) {
-			_fb.open("log", std::ios::out);
+			_fb.open("logs/log", std::ios::out);
 		}
 
 		~FileOutput() {

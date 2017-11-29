@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <glm\glm.hpp>
 #include <vulkan\vulkan.h>
 #include <vector>
 
@@ -13,14 +13,30 @@ class Renderer : public util::NonCopyable
 {
 private:
 	const std::vector<RenderPass::Vertex> vertices = {
-		{{-0.5f, -0.5f }, {1.f, 0.f, 0.f}},
-		{{0.5f, -0.5f}, {0.f, 1.f, 0.f}},
-		{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
-		{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}},
+		{ {-0.5f, -0.5f, -0.5f },	{ 1.f, 0.f, 0.f },	{ 0.f, 0.f } },
+		{ {-0.5f, -0.5f, 0.5f },	{ 0.f, 1.f, 0.f },	{ 0.f, 0.f } },
+		{ {-0.5f, 0.5f, -0.5f },	{ 0.f, 0.f, 1.f },	{ 0.f, 1.f } },
+		{ {-0.5f, 0.5f, 0.5f },		{ 1.f, 1.f, 1.f },	{ 0.f, 1.f } },
+		{ { 0.5f, -0.5f, -0.5f },	{ 1.f, 0.f, 0.f },	{ 1.f, 0.f } },
+		{ { 0.5f, -0.5f, 0.5f },	{ 0.f, 1.f, 0.f },	{ 1.f, 0.f } },
+		{ { 0.5f, 0.5f, -0.5f },	{ 0.f, 0.f, 1.f },	{ 1.f, 1.f } },
+		{ { 0.5f, 0.5f, 0.5f },		{ 1.f, 1.f, 1.f },	{ 1.f, 1.f } },
 	};
 
+
 	const std::vector<uint16_t> indices = {
-		0, 1, 2, 2, 3, 0
+		0, 6, 4,
+		0, 2, 6,
+		0, 3, 2,
+		0, 1, 3,
+		2, 7, 6,
+		2, 3, 7,
+		4, 6, 7,
+		4, 7, 5,
+		0, 4, 5,
+		0, 5, 1,
+		1, 5, 7,
+		1, 7, 3
 	};
 
 	struct Image {
@@ -55,6 +71,22 @@ private:
 	void createCommandPool(const Device&);
 	void createCommandBuffers(const Device&);
 	
+	void createDepthResources(const Device&);
+	bool hasStencilComponent(VkFormat);
+
+	VkCommandBuffer beginSingleTimeCommands(const Device&);
+	void endSingleTimeCommands(const Device&, VkCommandBuffer);
+
+	void createTextureImage(const Device&);
+	void createImage(const Device&, uint32_t width, uint32_t height, VkFormat, VkImageTiling, VkImageUsageFlags
+					, VkMemoryPropertyFlags, VkImage&, VkDeviceMemory&);
+	void transitionImageLayout(const Device&, VkImage, VkFormat, VkImageLayout oldLayout, VkImageLayout newLayout);
+	void copyBufferToImage(const Device&, VkBuffer, VkImage, uint32_t width, uint32_t height);
+	void createTextureImageView(const Device&);
+	void createTextureSampler(const Device&);
+
+	VkImageView createImageView(const Device&, VkImage, VkFormat, VkImageAspectFlags aspectFlags);
+
 	void createUniformBuffer(const Device&);
 	void createDescriptorPool(const Device&);
 	void createDescriptorSet(const Device&);
@@ -84,6 +116,15 @@ private:
 
 	VkBuffer _uniformBuffer;
 	VkDeviceMemory _uniformBufferMemory;
+
+	VkImage _textureImage;
+	VkDeviceMemory _textureImageMemory;
+	VkImageView _textureImageView;
+	VkSampler _textureSampler;
+
+	VkImage _depthImage;
+	VkDeviceMemory _depthImageMemory;
+	VkImageView _depthImageView;
 
 	VkDescriptorPool _descriptorPool;
 	VkDescriptorSet _descriptorSet;

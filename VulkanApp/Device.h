@@ -37,6 +37,8 @@ public:
 
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice, VkSurfaceKHR) const;
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling, VkFormatFeatureFlags) const;
+
 private:
 	const std::array<const char*, 1> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME

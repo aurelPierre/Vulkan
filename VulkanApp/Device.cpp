@@ -77,6 +77,8 @@ void Device::createLogicalDevice(VkInstance instance)
 	}
 
 	VkPhysicalDeviceFeatures deviceFeatures = {};
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
+
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
@@ -96,8 +98,9 @@ void Device::createLogicalDevice(VkInstance instance)
 bool Device::isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
 	QueueFamilyIndices indices = findQueueFamilies(device, surface);
-
 	bool extensionsSupported = checkDeviceExtensionSupport(device);
+	VkPhysicalDeviceFeatures supportedFeatures;
+	vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
 	bool swapChainAdequate = false;
 	if (extensionsSupported) {
@@ -105,7 +108,7 @@ bool Device::isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
 		swapChainAdequate = !swapChainSupport._formats.empty() && !swapChainSupport._presentModes.empty();
 	}
 
-	return indices.isComplete() && extensionsSupported && swapChainAdequate;
+	return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
 }
 
 Device::QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
@@ -193,4 +196,19 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 			return i;
 
 	THROW("failed to find suitable memory type");
+}
+
+VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const
+{
+	for (VkFormat format : candidates) {
+		VkFormatProperties props;
+		vkGetPhysicalDeviceFormatProperties(_physicalDevice, format, &props);
+
+		if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+			return format;
+		else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+			return format;
+	}
+
+	THROW("failed to find supported format")
 }
