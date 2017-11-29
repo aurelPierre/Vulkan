@@ -3,11 +3,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
 #include <chrono>
+#include <unordered_map>
 
 #include "App.h"
 #include "Logging.h"
@@ -31,6 +36,7 @@ void Renderer::initImages(const Device& device)
 	createTextureImage(device);
 	createTextureImageView(device);
 	createTextureSampler(device);
+	loadModel(device);
 	createVertexBuffer(device);
 	createIndexBuffer(device);
 	createUniformBuffer(device);
@@ -104,8 +110,8 @@ void Renderer::update(const Device& device, float deltaTime)
 	l += deltaTime;
 
 	RenderPass::UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(1.f), l * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-	ubo.view = glm::lookAt(glm::vec3(1.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+	ubo.model = glm::rotate(glm::mat4(1.f), l * glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
+	ubo.view = glm::lookAt(glm::vec3(1.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
 	ubo.proj = glm::perspective(glm::radians(90.f), (float)_swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.f);
 	ubo.proj[1][1] *= -1;
 
@@ -304,7 +310,7 @@ void Renderer::createCommandBuffers(const Device& device)
 		VkBuffer vertexBuffers[] = { _vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(_images[i]._commandBuffer, 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(_images[i]._commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(_images[i]._commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(_images[i]._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipelineLayout(), 0, 1,
 			&_descriptorSet, 0, nullptr);
 
@@ -369,7 +375,7 @@ void Renderer::endSingleTimeCommands(const Device& device, VkCommandBuffer comma
 void Renderer::createTextureImage(const Device& device)
 {
 	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	stbi_uc* pixels = stbi_load("textures/chalet.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 	if (!pixels)
 		THROW("failed to load texture image")
@@ -759,5 +765,46 @@ VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR & capabilit
 		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
 		actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 		return actualExtent;
+	}
+}
+
+void Renderer::loadModel(const Device &)
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string err;
+
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, "models/chalet.obj"))
+		THROW("failed to load obj with error: " + err)
+
+	std::unordered_map<RenderPass::Vertex, uint32_t> uniqueVertices = {};
+	uniqueVertices.reserve(attrib.vertices.size());
+	vertices.reserve(attrib.vertices.size());
+	indices.reserve(attrib.vertices.size());
+	for (const auto& shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			RenderPass::Vertex vertex = {};
+
+			vertex.pos = {
+				attrib.vertices[3 * index.vertex_index + 0],
+				attrib.vertices[3 * index.vertex_index + 1],
+				attrib.vertices[3 * index.vertex_index + 2]
+			};
+
+			vertex.uv = {
+				attrib.texcoords[2 * index.texcoord_index + 0],
+				1.f - attrib.texcoords[2 * index.texcoord_index + 1]
+			};
+
+			vertex.color = { 1.f, 1.f, 1.f };
+
+			if (uniqueVertices.count(vertex) == 0) {
+				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+				vertices.push_back(vertex);
+			}
+
+			indices.push_back(uniqueVertices[vertex]);
+		}
 	}
 }

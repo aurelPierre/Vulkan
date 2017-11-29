@@ -89,7 +89,7 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
-      <AdditionalIncludeDirectories>C:\Users\a.pierre\source\repos\Vulkan\Lib\stb-master;$(SolutionDir)\Lib\Vulkan\Windows\Include;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)\Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\a.pierre\source\repos\Vulkan\Lib\tinyobjloader-master;C:\Users\a.pierre\source\repos\Vulkan\Lib\stb-master;$(SolutionDir)\Lib\Vulkan\Windows\Include;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)\Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)\Lib\Vulkan\Windows\Bin;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -120,7 +120,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\a.pierre\source\repos\Vulkan\Lib\stb-master;$(SolutionDir)\Lib\Vulkan\Windows\Include;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)\Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\a.pierre\source\repos\Vulkan\Lib\tinyobjloader-master;C:\Users\a.pierre\source\repos\Vulkan\Lib\stb-master;$(SolutionDir)\Lib\Vulkan\Windows\Include;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)\Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -153,10 +153,6 @@
     <ClInclude Include="Singleton.h" />
     <ClInclude Include="StdOutput.h" />
     <ClInclude Include="Renderer.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\FragmentShader.frag" />
-    <None Include="shaders\VertexShader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

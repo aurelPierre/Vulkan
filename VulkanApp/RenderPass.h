@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtx/hash.hpp>
 #include <array>
 
 #include "Device.h"
@@ -18,6 +19,10 @@ public:
 		glm::vec3 pos;
 		glm::vec3 color;
 		glm::vec2 uv;
+
+		bool operator==(const Vertex& other) const {
+			return pos == other.pos && color == other.color && uv == other.uv;
+		}
 
 		static VkVertexInputBindingDescription getBindingDescription() {
 			VkVertexInputBindingDescription bindingDescription = {};
@@ -77,3 +82,12 @@ private:
 	VkPipeline _graphicsPipeline;
 };
 
+namespace std {
+	template<> struct hash<RenderPass::Vertex> {
+		size_t operator() (const RenderPass::Vertex& vertex) const {
+			return ((hash<glm::vec3>()(vertex.pos) ^
+					(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+					(hash<glm::vec2>()(vertex.uv) << 1);
+		}
+	};
+}

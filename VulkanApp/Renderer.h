@@ -12,33 +12,6 @@
 class Renderer : public util::NonCopyable
 {
 private:
-	const std::vector<RenderPass::Vertex> vertices = {
-		{ {-0.5f, -0.5f, -0.5f },	{ 1.f, 0.f, 0.f },	{ 0.f, 0.f } },
-		{ {-0.5f, -0.5f, 0.5f },	{ 0.f, 1.f, 0.f },	{ 0.f, 0.f } },
-		{ {-0.5f, 0.5f, -0.5f },	{ 0.f, 0.f, 1.f },	{ 0.f, 1.f } },
-		{ {-0.5f, 0.5f, 0.5f },		{ 1.f, 1.f, 1.f },	{ 0.f, 1.f } },
-		{ { 0.5f, -0.5f, -0.5f },	{ 1.f, 0.f, 0.f },	{ 1.f, 0.f } },
-		{ { 0.5f, -0.5f, 0.5f },	{ 0.f, 1.f, 0.f },	{ 1.f, 0.f } },
-		{ { 0.5f, 0.5f, -0.5f },	{ 0.f, 0.f, 1.f },	{ 1.f, 1.f } },
-		{ { 0.5f, 0.5f, 0.5f },		{ 1.f, 1.f, 1.f },	{ 1.f, 1.f } },
-	};
-
-
-	const std::vector<uint16_t> indices = {
-		0, 6, 4,
-		0, 2, 6,
-		0, 3, 2,
-		0, 1, 3,
-		2, 7, 6,
-		2, 3, 7,
-		4, 6, 7,
-		4, 7, 5,
-		0, 4, 5,
-		0, 5, 1,
-		1, 5, 7,
-		1, 7, 3
-	};
-
 	struct Image {
 		VkImage _image;
 		VkImageView _imageView;
@@ -99,6 +72,8 @@ private:
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
+	void loadModel(const Device&);
+
 	VkSwapchainKHR _swapChain;
 	VkFormat _swapChainImageFormat;
 	VkExtent2D _swapChainExtent;
@@ -108,6 +83,8 @@ private:
 	VkCommandPool _commandPool;
 	std::vector<Image> _images;
 
+	std::vector<RenderPass::Vertex> vertices;
+	std::vector<uint32_t> indices;
 	VkBuffer _vertexBuffer;
 	VkDeviceMemory _vertexBufferMemory;
 

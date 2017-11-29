@@ -122,8 +122,8 @@ void RenderPass::createDescriptorSetLayout(const Device& device)
 
 void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 {
-	auto vertShaderCode = readFile("shaders/defaultVert.spv");
-	auto fragShaderCode = readFile("shaders/defaultFrag.spv");
+	auto vertShaderCode = readFile("shaders/compiled/defaultVert.spv");
+	auto fragShaderCode = readFile("shaders/compiled/defaultFrag.spv");
 
 	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, device);
 	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, device);
