@@ -2,9 +2,11 @@
 
 #include <iostream>
 
+#include "NonCopyable.h"
+
 namespace util::log
 {
-	class StdOutput 
+	class StdOutput : public NonCopyable
 	{
 	public:
 		template<typename T>

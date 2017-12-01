@@ -92,7 +92,7 @@ void Device::createLogicalDevice(VkInstance instance)
 
 	VkResult result = vkCreateDevice(_physicalDevice, &createInfo, nullptr, &_device);
 	if (result != VK_SUCCESS)
-		THROW("failed to create logical device with error :" + result)
+		THROW("failed to create logical device with error :" + std::to_string(result))
 }
 
 bool Device::isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)

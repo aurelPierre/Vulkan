@@ -3,14 +3,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <chrono>
 #include <unordered_map>
 
@@ -31,29 +23,26 @@ void Renderer::initImages(const Device& device)
 {
 	createImageViews(device);
 	createCommandPool(device);
+	createDescriptorPool(device);
 	createDepthResources(device);
 	createFramebuffers(device);
-	createTextureImage(device);
-	createTextureImageView(device);
-	createTextureSampler(device);
-	loadModel(device);
-	createVertexBuffer(device);
-	createIndexBuffer(device);
-	createUniformBuffer(device);
-	createDescriptorPool(device);
-	createDescriptorSet(device);
-	createCommandBuffers(device);
+	createPCommandBuffers(device);
+
+	_meshs.push_back(new Mesh("../Data/models/chalet.obj"));
+	_meshs.push_back(new Mesh("../Data/models/chalet.obj"));
+	initMesh(device, _meshs[0]);
+	initMesh(device, _meshs[1]);
 
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
 	VkResult result = vkCreateSemaphore(device.getDevice(), &semaphoreInfo, nullptr, &_imageAvailableSemaphore);
 	if (result != VK_SUCCESS)
-		THROW("failed to create semaphore with error: " + result)
+		THROW("failed to create semaphore with error: " + std::to_string(result))
 
-		result = vkCreateSemaphore(device.getDevice(), &semaphoreInfo, nullptr, &_renderFinishedSemaphore);
+	result = vkCreateSemaphore(device.getDevice(), &semaphoreInfo, nullptr, &_renderFinishedSemaphore);
 	if (result != VK_SUCCESS)
-		THROW("failed to create semaphore with error: " + result)
+		THROW("failed to create semaphore with error: " + std::to_string(result))
 }
 
 
@@ -64,20 +53,8 @@ void Renderer::clean(const Device& device)
 
 	vkDestroyDescriptorPool(device.getDevice(), _descriptorPool, nullptr);
 
-	vkDestroyBuffer(device.getDevice(), _uniformBuffer, nullptr);
-	vkFreeMemory(device.getDevice(), _uniformBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.getDevice(), _indexBuffer, nullptr);
-	vkFreeMemory(device.getDevice(), _indexBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.getDevice(), _vertexBuffer, nullptr);
-	vkFreeMemory(device.getDevice(), _vertexBufferMemory, nullptr);
-
-	vkDestroySampler(device.getDevice(), _textureSampler, nullptr);
-	vkDestroyImageView(device.getDevice(), _textureImageView, nullptr);
-
-	vkDestroyImage(device.getDevice(), _textureImage, nullptr);
-	vkFreeMemory(device.getDevice(), _textureImageMemory, nullptr);
+	for(auto& mesh : _meshs)
+		mesh->clean(device);
 
 	vkDestroyImageView(device.getDevice(), _depthImageView, nullptr);
 	vkDestroyImage(device.getDevice(), _depthImage, nullptr);
@@ -106,19 +83,9 @@ void Renderer::recreate(const Device& device, VkSurfaceKHR surface)
 
 void Renderer::update(const Device& device, float deltaTime)
 {
-	static float l = 0.f;
-	l += deltaTime;
-
-	RenderPass::UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(1.f), l * glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
-	ubo.view = glm::lookAt(glm::vec3(1.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-	ubo.proj = glm::perspective(glm::radians(90.f), (float)_swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.f);
-	ubo.proj[1][1] *= -1;
-
-	void* data;
-	vkMapMemory(device.getDevice(), _uniformBufferMemory, 0, sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
-	vkUnmapMemory(device.getDevice(), _uniformBufferMemory);
+	/*for (auto& mesh : _meshs)*/
+		_meshs[0]->update(device, deltaTime, -0.5f);
+		_meshs[1]->update(device, deltaTime, 0.5f);
 }
 
 void Renderer::draw(const Device& device)
@@ -131,18 +98,22 @@ void Renderer::draw(const Device& device)
 		util::Singleton<core::App>::instance().resize();
 		return;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-		THROW("failed to acquire swap chain image with error: " + result)
+		THROW("failed to acquire swap chain image with error: " + std::to_string(result))
 
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
 	VkSemaphore waitSemaphores[] = { _imageAvailableSemaphore };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	std::vector<VkCommandBuffer> commandBuffers;
+	for (const auto& mesh : _meshs)
+		commandBuffers.emplace_back(mesh->_commandBuffers[imageIndex]);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &_images[imageIndex]._commandBuffer;
+	submitInfo.pCommandBuffers = &_images[imageIndex]._primaryCommandBuffer;
 
 	VkSemaphore signalSemaphores[] = { _renderFinishedSemaphore };
 	submitInfo.signalSemaphoreCount = 1;
@@ -150,7 +121,7 @@ void Renderer::draw(const Device& device)
 
 	result = vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 	if (result != VK_SUCCESS)
-		THROW("failed to submit draw command buffer with error: " + result)
+		THROW("failed to submit draw command buffer with error: " + std::to_string(result))
 
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -167,7 +138,19 @@ void Renderer::draw(const Device& device)
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 		util::Singleton<core::App>::instance().resize();
 	else if(result != VK_SUCCESS)
-		THROW("failed to present swap chain image with error: " + result)
+		THROW("failed to present swap chain image with error: " + std::to_string(result))
+}
+
+void Renderer::initMesh(const Device& device, Mesh* mesh)
+{
+	createUniformBuffer(device, mesh);
+	createTextureImage(device, mesh);
+	createTextureImageView(device, mesh);
+	createTextureSampler(device, mesh);
+	createVertexBuffer(device, mesh);
+	createIndexBuffer(device, mesh);
+	createDescriptorSet(device, mesh);
+	createCommandBuffers(device, mesh);
 }
 
 void Renderer::createSwapChain(const Device& device, VkSurfaceKHR surface)
@@ -213,7 +196,7 @@ void Renderer::createSwapChain(const Device& device, VkSurfaceKHR surface)
 
 	VkResult result = vkCreateSwapchainKHR(device.getDevice(), &createInfo, nullptr, &_swapChain);
 	if (result != VK_SUCCESS)
-		THROW("failed to create swap chain with error:" + result)
+		THROW("failed to create swap chain with error:" + std::to_string(result))
 
 	_swapChainImageFormat = surfaceFormat.format;
 	_swapChainExtent = extent;
@@ -252,7 +235,7 @@ void Renderer::createFramebuffers(const Device& device)
 
 		VkResult result = vkCreateFramebuffer(device.getDevice(), &framebufferInfo, nullptr, &_images[i]._framebuffer);
 		if (result != VK_SUCCESS)
-			THROW("failed to create framebuffer with error: " + result)
+			THROW("failed to create framebuffer with error: " + std::to_string(result))
 	}
 }
 
@@ -267,59 +250,49 @@ void Renderer::createCommandPool(const Device& device)
 
 	VkResult result = vkCreateCommandPool(device.getDevice(), &poolInfo, nullptr, &_commandPool);
 	if (result != VK_SUCCESS)
-		THROW("failed to create command pool with error: " + result)
+		THROW("failed to create command pool with error: " + std::to_string(result))
 }
 
-void Renderer::createCommandBuffers(const Device& device)
+void Renderer::createCommandBuffers(const Device& device, Mesh* mesh)
 {
-	for (size_t i = 0; i < _images.size(); ++i) {
-		VkCommandBufferAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = _commandPool;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = 1;
+	mesh->_commandBuffers.resize(_images.size());
 
-		VkResult result = vkAllocateCommandBuffers(device.getDevice(), &allocInfo, &_images[i]._commandBuffer);
-		if (result != VK_SUCCESS)
-			THROW("failed to allocate command buffers with error: " + result)
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = _commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+	allocInfo.commandBufferCount = static_cast<uint32_t>(mesh->_commandBuffers.size());
+
+	VkResult result = vkAllocateCommandBuffers(device.getDevice(), &allocInfo, mesh->_commandBuffers.data());
+	if (result != VK_SUCCESS)
+		THROW("failed to allocate command buffers with error: " + std::to_string(result))
+
+	for (size_t i = 0; i < _images.size(); ++i) {
+		VkCommandBufferInheritanceInfo inheritanceInfo = {};
+		inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+		inheritanceInfo.renderPass = _renderPass.getRenderPass();
+		inheritanceInfo.subpass = 1;
+		inheritanceInfo.framebuffer = _images[i]._framebuffer;
 
 		VkCommandBufferBeginInfo beginInfo = {};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-		beginInfo.pInheritanceInfo = nullptr;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+		beginInfo.pInheritanceInfo = &inheritanceInfo;
 
-		vkBeginCommandBuffer(_images[i]._commandBuffer, &beginInfo);
+		vkBeginCommandBuffer(mesh->_commandBuffers[i], &beginInfo);
 
-		VkRenderPassBeginInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = _renderPass.getRenderPass();
-		renderPassInfo.framebuffer = _images[i]._framebuffer;
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = _swapChainExtent;
-
-		std::array<VkClearValue, 2> clearValues = {};
-		clearValues[0].color = { 0.15f, 0.15f, 0.15f, 1.f };
-		clearValues[1].depthStencil = { 1.f, 0 };
-
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		vkCmdBeginRenderPass(_images[i]._commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(_images[i]._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipeline());
-
-		VkBuffer vertexBuffers[] = { _vertexBuffer };
+		VkBuffer vertexBuffers[] = { mesh->_vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(_images[i]._commandBuffer, 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(_images[i]._commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(_images[i]._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipelineLayout(), 0, 1,
-			&_descriptorSet, 0, nullptr);
+		vkCmdBindVertexBuffers(mesh->_commandBuffers[i], 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(mesh->_commandBuffers[i], mesh->_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(mesh->_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipelineLayout(), 0, 1,
+			&mesh->_descriptorSet, 0, nullptr);
 
-		vkCmdDrawIndexed(_images[i]._commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-		vkCmdEndRenderPass(_images[i]._commandBuffer);
+		vkCmdDrawIndexed(mesh->_commandBuffers[i], static_cast<uint32_t>(mesh->indices.size()), 1, 0, 0, 0);
 
-		result = vkEndCommandBuffer(_images[i]._commandBuffer);
+		result = vkEndCommandBuffer(mesh->_commandBuffers[i]);
 		if (result != VK_SUCCESS)
-			THROW("failed to record command buffer with error: " + result)
+			THROW("failed to record command buffer with error: " + std::to_string(result))
 	}
 }
 
@@ -372,10 +345,10 @@ void Renderer::endSingleTimeCommands(const Device& device, VkCommandBuffer comma
 	vkFreeCommandBuffers(device.getDevice(), _commandPool, 1, &commandBuffer);
 }
 
-void Renderer::createTextureImage(const Device& device)
+void Renderer::createTextureImage(const Device& device, Mesh* mesh)
 {
 	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load("textures/chalet.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	stbi_uc* pixels = stbi_load("../Data/textures/chalet.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 	if (!pixels)
 		THROW("failed to load texture image")
@@ -392,11 +365,11 @@ void Renderer::createTextureImage(const Device& device)
 	stbi_image_free(pixels);
 
 	createImage(device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT
-				| VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _textureImage, _textureImageMemory);
-	transitionImageLayout(device, _textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED
+				| VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mesh->_textureImage, mesh->_textureImageMemory);
+	transitionImageLayout(device, mesh->_textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED
 						, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(device, stagingBuffer, _textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-	transitionImageLayout(device, _textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	copyBufferToImage(device, stagingBuffer, mesh->_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	transitionImageLayout(device, mesh->_textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 						, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
@@ -424,7 +397,7 @@ void Renderer::createImage(const Device& device, uint32_t width, uint32_t height
 
 	VkResult result = vkCreateImage(device.getDevice(), &imageInfo, nullptr, &image);
 	if (result != VK_SUCCESS)
-		THROW("failed to create image with error: " + result)
+		THROW("failed to create image with error: " + std::to_string(result))
 
 	VkMemoryRequirements memRequirements;
 	vkGetImageMemoryRequirements(device.getDevice(), image, &memRequirements);
@@ -436,7 +409,7 @@ void Renderer::createImage(const Device& device, uint32_t width, uint32_t height
 
 	result = vkAllocateMemory(device.getDevice(), &allocInfo, nullptr, &imageMemory);
 	if (result != VK_SUCCESS)
-		THROW("failed to allocate image memory with error: " + result)
+		THROW("failed to allocate image memory with error: " + std::to_string(result))
 
 	vkBindImageMemory(device.getDevice(), image, imageMemory, 0);
 }
@@ -518,12 +491,12 @@ void Renderer::copyBufferToImage(const Device& device, VkBuffer buffer, VkImage 
 	endSingleTimeCommands(device, commandBuffer);
 }
 
-void Renderer::createTextureImageView(const Device& device)
+void Renderer::createTextureImageView(const Device& device, Mesh* mesh)
 {
-	_textureImageView = createImageView(device, _textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+	mesh->_textureImageView = createImageView(device, mesh->_textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-void Renderer::createTextureSampler(const Device& device)
+void Renderer::createTextureSampler(const Device& device, Mesh* mesh)
 {
 	VkSamplerCreateInfo samplerInfo = {};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -543,9 +516,9 @@ void Renderer::createTextureSampler(const Device& device)
 	samplerInfo.minLod = 0.f;
 	samplerInfo.maxLod = 0.f;
 
-	VkResult result = vkCreateSampler(device.getDevice(), &samplerInfo, nullptr, &_textureSampler);
+	VkResult result = vkCreateSampler(device.getDevice(), &samplerInfo, nullptr, &mesh->_textureSampler);
 	if(result != VK_SUCCESS)
-		THROW("failed to create texture sampler with error: " + result)
+		THROW("failed to create texture sampler with error: " + std::to_string(result))
 }
 
 VkImageView Renderer::createImageView(const Device& device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
@@ -564,16 +537,16 @@ VkImageView Renderer::createImageView(const Device& device, VkImage image, VkFor
 	VkImageView imageView;
 	VkResult result = vkCreateImageView(device.getDevice(), &viewInfo, nullptr, &imageView);
 	if (result != VK_SUCCESS)
-		THROW("failed to create texture image view with error: " + result)
+		THROW("failed to create texture image view with error: " + std::to_string(result))
 
 	return imageView;
 }
 
-void Renderer::createUniformBuffer(const Device& device)
+void Renderer::createUniformBuffer(const Device& device, Mesh* mesh)
 {
 	VkDeviceSize bufferSize = sizeof(RenderPass::UniformBufferObject);
 	createBuffer(device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _uniformBuffer, _uniformBufferMemory);
+		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mesh->_uniformBuffer, mesh->_uniformBufferMemory);
 }
 
 void Renderer::createDescriptorPool(const Device& device)
@@ -588,14 +561,14 @@ void Renderer::createDescriptorPool(const Device& device)
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = 1;
+	poolInfo.maxSets = 2;
 
 	VkResult result = vkCreateDescriptorPool(device.getDevice(), &poolInfo, nullptr, &_descriptorPool);
 	if(result != VK_SUCCESS)
-		THROW("failed to create descriptor pool with error: " + result)
+		THROW("failed to create descriptor pool with error: " + std::to_string(result))
 }
 
-void Renderer::createDescriptorSet(const Device& device)
+void Renderer::createDescriptorSet(const Device& device, Mesh* mesh)
 {
 	VkDescriptorSetLayout layouts[] = { _renderPass.getDescriptorSetLayout() };
 	VkDescriptorSetAllocateInfo allocInfo = {};
@@ -604,23 +577,23 @@ void Renderer::createDescriptorSet(const Device& device)
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = layouts;
 
-	VkResult result = vkAllocateDescriptorSets(device.getDevice(), &allocInfo, &_descriptorSet);
+	VkResult result = vkAllocateDescriptorSets(device.getDevice(), &allocInfo, &mesh->_descriptorSet);
 	if (result != VK_SUCCESS)
-		THROW("failed to allocate descriptor set with error: " + result)
+		THROW("failed to allocate descriptor set with error: " + std::to_string(result))
 
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = _uniformBuffer;
+	bufferInfo.buffer = mesh->_uniformBuffer;
 	bufferInfo.offset = 0;
 	bufferInfo.range = sizeof(RenderPass::UniformBufferObject);
 
 	VkDescriptorImageInfo imageInfo = {};
 	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = _textureImageView;
-	imageInfo.sampler = _textureSampler;
+	imageInfo.imageView = mesh->_textureImageView;
+	imageInfo.sampler = mesh->_textureSampler;
 
 	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[0].dstSet = _descriptorSet;
+	descriptorWrites[0].dstSet = mesh->_descriptorSet;
 	descriptorWrites[0].dstBinding = 0;
 	descriptorWrites[0].dstArrayElement = 0;
 	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -628,20 +601,19 @@ void Renderer::createDescriptorSet(const Device& device)
 	descriptorWrites[0].pBufferInfo = &bufferInfo;
 
 	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[1].dstSet = _descriptorSet;
+	descriptorWrites[1].dstSet = mesh->_descriptorSet;
 	descriptorWrites[1].dstBinding = 1;
 	descriptorWrites[1].dstArrayElement = 0;
 	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptorWrites[1].descriptorCount = 1;
 	descriptorWrites[1].pImageInfo = &imageInfo;
 
-
 	vkUpdateDescriptorSets(device.getDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 }
 
-void Renderer::createIndexBuffer(const Device& device)
+void Renderer::createIndexBuffer(const Device& device, Mesh* mesh)
 {
-	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+	VkDeviceSize bufferSize = sizeof(mesh->indices[0]) * mesh->indices.size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory staginBufferMemory;
@@ -650,21 +622,21 @@ void Renderer::createIndexBuffer(const Device& device)
 
 	void* data;
 	vkMapMemory(device.getDevice(), staginBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
+	memcpy(data, mesh->indices.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(device.getDevice(), staginBufferMemory);
 
 	createBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-				_indexBuffer, _indexBufferMemory);
+				mesh->_indexBuffer, mesh->_indexBufferMemory);
 
-	copyBuffer(device, stagingBuffer, _indexBuffer, bufferSize);
+	copyBuffer(device, stagingBuffer, mesh->_indexBuffer, bufferSize);
 
 	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(device.getDevice(), staginBufferMemory, nullptr);
 }
 
-void Renderer::createVertexBuffer(const Device& device)
+void Renderer::createVertexBuffer(const Device& device, Mesh* mesh)
 {
-	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+	VkDeviceSize bufferSize = sizeof(mesh->vertices[0]) * mesh->vertices.size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory staginBufferMemory;
@@ -673,13 +645,13 @@ void Renderer::createVertexBuffer(const Device& device)
 
 	void* data;
 	vkMapMemory(device.getDevice(), staginBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+	memcpy(data, mesh->vertices.data(), static_cast<size_t>(bufferSize));
 	vkUnmapMemory(device.getDevice(), staginBufferMemory);
 
 	createBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-				, _vertexBuffer, _vertexBufferMemory);
+				, mesh->_vertexBuffer, mesh->_vertexBufferMemory);
 
-	copyBuffer(device, stagingBuffer, _vertexBuffer, bufferSize);
+	copyBuffer(device, stagingBuffer, mesh->_vertexBuffer, bufferSize);
 
 	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(device.getDevice(), staginBufferMemory, nullptr);
@@ -696,7 +668,7 @@ void Renderer::createBuffer(const Device& device, VkDeviceSize size, VkBufferUsa
 
 	VkResult result = vkCreateBuffer(device.getDevice(), &bufferInfo, nullptr, &buffer);
 	if (result != VK_SUCCESS)
-		THROW("failed to create vertex buffer with error: " + result)
+		THROW("failed to create vertex buffer with error: " + std::to_string(result))
 
 	VkMemoryRequirements memRequirements;
 	vkGetBufferMemoryRequirements(device.getDevice(), buffer, &memRequirements);
@@ -708,7 +680,7 @@ void Renderer::createBuffer(const Device& device, VkDeviceSize size, VkBufferUsa
 	
 	result = vkAllocateMemory(device.getDevice(), &allocInfo, nullptr, &memory);
 	if (result != VK_SUCCESS)
-		THROW("failed to allocate vertex buffer memory with errror: " + result)
+		THROW("failed to allocate vertex buffer memory with errror: " + std::to_string(result))
 
 	vkBindBufferMemory(device.getDevice(), buffer, memory, 0);
 }
@@ -724,6 +696,51 @@ void Renderer::copyBuffer(const Device& device, VkBuffer src, VkBuffer dst, VkDe
 	vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
 
 	endSingleTimeCommands(device, commandBuffer);
+}
+
+void Renderer::createPCommandBuffers(const Device& device)
+{
+	for (size_t i = 0; i < _images.size(); ++i) {
+		VkCommandBufferAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = _commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = 1;
+
+		VkResult result = vkAllocateCommandBuffers(device.getDevice(), &allocInfo, &_images[i]._primaryCommandBuffer);
+		if (result != VK_SUCCESS)
+			THROW("failed to allocate command buffers with error: " + std::to_string(result))
+
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		beginInfo.pInheritanceInfo = nullptr;
+
+		vkBeginCommandBuffer(_images[i]._primaryCommandBuffer, &beginInfo);
+
+		VkRenderPassBeginInfo renderPassInfo = {};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = _renderPass.getRenderPass();
+		renderPassInfo.framebuffer = _images[i]._framebuffer;
+		renderPassInfo.renderArea.offset = { 0, 0 };
+		renderPassInfo.renderArea.extent = _swapChainExtent;
+
+		std::array<VkClearValue, 2> clearValues = {};
+		clearValues[0].color = { 0.15f, 0.15f, 0.15f, 1.f };
+		clearValues[1].depthStencil = { 1.f, 0 };
+
+		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+		renderPassInfo.pClearValues = clearValues.data();
+
+		vkCmdBeginRenderPass(_images[i]._primaryCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+		vkCmdBindPipeline(_images[i]._primaryCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _renderPass.getPipeline());
+
+		vkCmdEndRenderPass(_images[i]._primaryCommandBuffer);
+
+		result = vkEndCommandBuffer(_images[i]._primaryCommandBuffer);
+		if (result != VK_SUCCESS)
+			THROW("failed to record command buffer with error: " + std::to_string(result))
+	}
 }
 
 VkSurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -765,46 +782,5 @@ VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR & capabilit
 		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
 		actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 		return actualExtent;
-	}
-}
-
-void Renderer::loadModel(const Device &)
-{
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string err;
-
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, "models/chalet.obj"))
-		THROW("failed to load obj with error: " + err)
-
-	std::unordered_map<RenderPass::Vertex, uint32_t> uniqueVertices = {};
-	uniqueVertices.reserve(attrib.vertices.size());
-	vertices.reserve(attrib.vertices.size());
-	indices.reserve(attrib.vertices.size());
-	for (const auto& shape : shapes) {
-		for (const auto& index : shape.mesh.indices) {
-			RenderPass::Vertex vertex = {};
-
-			vertex.pos = {
-				attrib.vertices[3 * index.vertex_index + 0],
-				attrib.vertices[3 * index.vertex_index + 1],
-				attrib.vertices[3 * index.vertex_index + 2]
-			};
-
-			vertex.uv = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
-
-			vertex.color = { 1.f, 1.f, 1.f };
-
-			if (uniqueVertices.count(vertex) == 0) {
-				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-				vertices.push_back(vertex);
-			}
-
-			indices.push_back(uniqueVertices[vertex]);
-		}
 	}
 }

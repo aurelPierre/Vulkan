@@ -1,5 +1,6 @@
 #include "RenderPass.h"
 
+#include "Mesh.h"
 #include "Logging.h"
 
 void RenderPass::init(const Device& device, VkFormat format, VkExtent2D extent)
@@ -24,7 +25,7 @@ std::vector<char> RenderPass::readFile(const std::string & filename)
 	if (!file.is_open())
 		THROW("failed to open file " + filename)
 
-		size_t fileSize = (size_t)file.tellg();
+	size_t fileSize = (size_t)file.tellg();
 	std::vector<char> buffer(fileSize);
 
 	file.seekg(0);
@@ -90,7 +91,7 @@ void RenderPass::createRenderPass(const Device& device, VkFormat format)
 
 	VkResult result = vkCreateRenderPass(device.getDevice(), &renderPassInfo, nullptr, &_renderPass);
 	if (result != VK_SUCCESS)
-		THROW("failed to create render pass with error: " + result)
+		THROW("failed to create render pass with error: " + std::to_string(result))
 }
 
 void RenderPass::createDescriptorSetLayout(const Device& device)
@@ -117,13 +118,13 @@ void RenderPass::createDescriptorSetLayout(const Device& device)
 
 	VkResult result = vkCreateDescriptorSetLayout(device.getDevice(), &layoutInfo, nullptr, &_descriptorSetLayout);
 	if (result != VK_SUCCESS)
-		THROW("failed to create descriptor set layout with error: " + result)
+		THROW("failed to create descriptor set layout with error: " + std::to_string(result))
 }
 
 void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 {
-	auto vertShaderCode = readFile("shaders/compiled/defaultVert.spv");
-	auto fragShaderCode = readFile("shaders/compiled/defaultFrag.spv");
+	auto vertShaderCode = readFile("../Data/shaders/compiled/defaultVert.spv");
+	auto fragShaderCode = readFile("../Data/shaders/compiled/defaultFrag.spv");
 
 	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, device);
 	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, device);
@@ -142,8 +143,8 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-	auto bindingDescription = Vertex::getBindingDescription();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+	auto bindingDescription = Mesh::Vertex::getBindingDescription();
+	auto attributeDescriptions = Mesh::Vertex::getAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -239,7 +240,7 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 
 	VkResult result = vkCreatePipelineLayout(device.getDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout);
 	if (result != VK_SUCCESS)
-		THROW("failed to create pipeline layout with error: " + result);
+		THROW("failed to create pipeline layout with error: " + std::to_string(result));
 
 	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
 	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -275,7 +276,7 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 
 	result = vkCreateGraphicsPipelines(device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_graphicsPipeline);
 	if (result != VK_SUCCESS)
-		THROW("failed to create graphics pipeline with error: " + result)
+		THROW("failed to create graphics pipeline with error: " + std::to_string(result))
 
 	vkDestroyShaderModule(device.getDevice(), fragShaderModule, nullptr);
 	vkDestroyShaderModule(device.getDevice(), vertShaderModule, nullptr);
@@ -291,7 +292,7 @@ VkShaderModule RenderPass::createShaderModule(const std::vector<char>& code, con
 	VkShaderModule shaderModule;
 	VkResult result = vkCreateShaderModule(device.getDevice(), &createInfo, nullptr, &shaderModule);
 	if (result != VK_SUCCESS)
-		THROW("failed to create shader module with error: " + result)
+		THROW("failed to create shader module with error: " + std::to_string(result))
 
 		return shaderModule;
 }

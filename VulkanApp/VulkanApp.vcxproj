@@ -136,6 +136,7 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="RenderPass.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
@@ -146,6 +147,7 @@
     <ClInclude Include="Logger.h" />
     <ClInclude Include="LoggerLevel.h" />
     <ClInclude Include="Logging.h" />
+    <ClInclude Include="Mesh.h" />
     <ClInclude Include="NonCopyable.h" />
     <ClInclude Include="NullOutput.h" />
     <ClInclude Include="OutputLevelRunTimeSwitch.h" />
@@ -153,6 +155,10 @@
     <ClInclude Include="Singleton.h" />
     <ClInclude Include="StdOutput.h" />
     <ClInclude Include="Renderer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Data\shaders\FragmentShader.frag" />
+    <None Include="..\Data\shaders\VertexShader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
