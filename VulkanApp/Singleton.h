@@ -12,7 +12,7 @@ namespace util
 
 		virtual ~Singleton() = default;
 
-	private:
+	protected:
 		static T _obj;
 
 		Singleton() = default;

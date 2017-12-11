@@ -30,7 +30,7 @@ public:
 	void init(VkInstance, VkSurfaceKHR);
 	void clean();
 
-	VkDevice getDevice() const { return _device; }
+	VkDevice getDevice() { return _device; }
 	VkPhysicalDevice getPhysicalDevice() const { return _physicalDevice; }
 	const QueueFamilyIndices& getIndices() const { return _indices; }
 	const SwapChainSupportDetails& getSwapChainSupportDetails() const { return _swapChainSupportDetails; }

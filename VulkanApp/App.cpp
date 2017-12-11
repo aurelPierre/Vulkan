@@ -19,7 +19,6 @@ namespace core
 		initWindow();
 		initVulkan();
 		loop();
-		clean();
 	}
 
 	void App::onWindowResized(GLFWwindow* window, int width, int height)
@@ -40,7 +39,7 @@ namespace core
 	{
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		_window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
 
 		glfwSetWindowUserPointer(_window, this);
@@ -53,6 +52,12 @@ namespace core
 		createSurface();
 		_device.init(_vkInstance, _surface);
 		_renderer.init(_device, _surface);
+
+		_resourceManager.loadModel("../Data/models/chalet.obj");
+		_resourceManager.loadTexture("../Data/textures/chalet.jpg");
+
+		_renderer.addMesh(new Mesh(_resourceManager.getModel("../Data/models/chalet.obj"), _resourceManager.getTexture("../Data/textures/chalet.jpg")));
+		_renderer.addMesh(new Mesh(_resourceManager.getModel("../Data/models/chalet.obj"), _resourceManager.getTexture("../Data/textures/chalet.jpg")));
 	}
 
 	void App::createInstance()
@@ -144,11 +149,11 @@ namespace core
 		vkDeviceWaitIdle(_device.getDevice());
 	}
 
-	void App::clean()
+	App::~App()
 	{
-		_renderer.clean(_device);
+		_resourceManager.clean();
+		_renderer.clean();
 		_device.clean();
-
 		vkDestroySurfaceKHR(_vkInstance, _surface, nullptr);
 		vkDestroyInstance(_vkInstance, nullptr);
 		glfwDestroyWindow(_window);

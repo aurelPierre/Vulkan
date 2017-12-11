@@ -25,8 +25,8 @@ public:
 
 	void init(const Device&, VkSurfaceKHR);
 	void initImages(const Device&);
-	void clean(const Device&);
 	void recreate(const Device&, VkSurfaceKHR);
+	void clean();
 
 	void update(const Device&, float);
 	void draw(const Device&);
@@ -35,7 +35,7 @@ public:
 	VkFormat getFormat() const { return _swapChainImageFormat; }
 	const VkExtent2D& getExtent() const { return _swapChainExtent; }
 
-private:
+public:
 	void createSwapChain(const Device&, VkSurfaceKHR);
 
 	void createImageViews(const Device&);
@@ -57,14 +57,10 @@ private:
 
 	static VkImageView createImageView(const Device&, VkImage, VkFormat, VkImageAspectFlags aspectFlags);
 
+	void addMesh(Mesh*);
 	void initMesh(const Device&, Mesh*);
 	void createUniformBuffer(const Device&, Mesh*);
-	void createTextureImageView(const Device&, Mesh*);
-	void createTextureSampler(const Device&, Mesh*);
-	void createTextureImage(const Device&, Mesh*);
 	void createDescriptorSet(const Device&, Mesh*);
-	void createIndexBuffer(const Device&, Mesh*);
-	void createVertexBuffer(const Device&, Mesh*);
 	void createCommandBuffers(const Device&, Mesh*);
 
 	static void createBuffer(const Device&, VkDeviceSize, VkBufferUsageFlags, VkMemoryPropertyFlags, VkBuffer&, VkDeviceMemory&);

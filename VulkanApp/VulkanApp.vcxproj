@@ -89,10 +89,10 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
-      <AdditionalIncludeDirectories>C:\Users\a.pierre\source\repos\Vulkan\Lib\tinyobjloader-master;C:\Users\a.pierre\source\repos\Vulkan\Lib\stb-master;$(SolutionDir)\Lib\Vulkan\Windows\Include;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)\Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Lib\tinyobjloader-master;$(SolutionDir)Lib\stb-master;$(SolutionDir)Lib\Vulkan\Windows\Include;$(SolutionDir)Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)\Lib\Vulkan\Windows\Bin;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)Lib\Vulkan\Windows\Bin;$(SolutionDir)Lib\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -120,12 +120,12 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\a.pierre\source\repos\Vulkan\Lib\tinyobjloader-master;C:\Users\a.pierre\source\repos\Vulkan\Lib\stb-master;$(SolutionDir)\Lib\Vulkan\Windows\Include;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)\Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Lib\tinyobjloader-master;$(SolutionDir)Lib\stb-master;$(SolutionDir)Lib\Vulkan\Windows\Include;$(SolutionDir)Lib\glfw-3.2.1.bin.WIN64\include;$(SolutionDir)Lib\glm-0.9.8.5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)\Lib\Vulkan\Windows\Bin;$(SolutionDir)\Lib\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)Lib\Vulkan\Windows\Bin;$(SolutionDir)Lib\glfw-3.2.1.bin.WIN64\lib-vc2015;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -137,8 +137,11 @@
     <ClCompile Include="Device.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="RenderPass.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
@@ -148,13 +151,16 @@
     <ClInclude Include="LoggerLevel.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="NonCopyable.h" />
     <ClInclude Include="NullOutput.h" />
     <ClInclude Include="OutputLevelRunTimeSwitch.h" />
     <ClInclude Include="RenderPass.h" />
+    <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Singleton.h" />
     <ClInclude Include="StdOutput.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Texture.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Data\shaders\FragmentShader.frag" />

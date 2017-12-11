@@ -8,27 +8,32 @@
 #include <vector>
 #include <array>
 
-#include "NonCopyable.h"
+#include "Singleton.h"
 #include "Device.h"
 #include "Renderer.h"
+#include "ResourceManager.h"
 
 typedef unsigned int uint;
 
 namespace core
 {
-	class App : public util::NonCopyable
+	class App : public util::Singleton<App>
 	{
 	public:
 		const uint WIDTH = 800;
 		const uint HEIGHT = 600;
 
 		App() = default;
-		~App() = default;
+		~App();
 
 		void getWindowSize(int& window, int& height);
 		void resize();
 
 		void run();
+
+		ResourceManager& getResourceManager() { return _resourceManager; }
+		Renderer& getRenderer() { return _renderer; }
+		Device& getDevice() { return _device; }
 
 	private:
 		static void onWindowResized(GLFWwindow*, int width, int height);
@@ -37,8 +42,9 @@ namespace core
 		GLFWwindow*	_window;
 		VkSurfaceKHR _surface;
 
-		Device _device;
+		ResourceManager _resourceManager;
 		Renderer _renderer;
+		Device _device;
 
 		void initWindow();
 		void initVulkan();
@@ -46,6 +52,6 @@ namespace core
 		void createSurface();
 
 		void loop();
-		void clean();
+		/*void clean();*/
 	};
 }

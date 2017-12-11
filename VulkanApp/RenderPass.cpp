@@ -2,6 +2,7 @@
 
 #include "Mesh.h"
 #include "Logging.h"
+#include "App.h"
 
 void RenderPass::init(const Device& device, VkFormat format, VkExtent2D extent)
 {
@@ -12,10 +13,10 @@ void RenderPass::init(const Device& device, VkFormat format, VkExtent2D extent)
 
 void RenderPass::clean(const Device& device)
 {
-	vkDestroyPipeline(device.getDevice(), _graphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(device.getDevice(), _pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(device.getDevice(), _descriptorSetLayout, nullptr);
-	vkDestroyRenderPass(device.getDevice(), _renderPass, nullptr);
+	vkDestroyPipeline(core::App::instance().getDevice().getDevice(), _graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(core::App::instance().getDevice().getDevice(), _pipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(core::App::instance().getDevice().getDevice(), _descriptorSetLayout, nullptr);
+	vkDestroyRenderPass(core::App::instance().getDevice().getDevice(), _renderPass, nullptr);
 }
 
 std::vector<char> RenderPass::readFile(const std::string & filename)
@@ -89,7 +90,7 @@ void RenderPass::createRenderPass(const Device& device, VkFormat format)
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-	VkResult result = vkCreateRenderPass(device.getDevice(), &renderPassInfo, nullptr, &_renderPass);
+	VkResult result = vkCreateRenderPass(core::App::instance().getDevice().getDevice(), &renderPassInfo, nullptr, &_renderPass);
 	if (result != VK_SUCCESS)
 		THROW("failed to create render pass with error: " + std::to_string(result))
 }
@@ -116,7 +117,7 @@ void RenderPass::createDescriptorSetLayout(const Device& device)
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 	layoutInfo.pBindings = bindings.data();
 
-	VkResult result = vkCreateDescriptorSetLayout(device.getDevice(), &layoutInfo, nullptr, &_descriptorSetLayout);
+	VkResult result = vkCreateDescriptorSetLayout(core::App::instance().getDevice().getDevice(), &layoutInfo, nullptr, &_descriptorSetLayout);
 	if (result != VK_SUCCESS)
 		THROW("failed to create descriptor set layout with error: " + std::to_string(result))
 }
@@ -143,8 +144,8 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-	auto bindingDescription = Mesh::Vertex::getBindingDescription();
-	auto attributeDescriptions = Mesh::Vertex::getAttributeDescriptions();
+	auto bindingDescription = Model::Vertex::getBindingDescription();
+	auto attributeDescriptions = Model::Vertex::getAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -238,7 +239,7 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = 0;
 
-	VkResult result = vkCreatePipelineLayout(device.getDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout);
+	VkResult result = vkCreatePipelineLayout(core::App::instance().getDevice().getDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout);
 	if (result != VK_SUCCESS)
 		THROW("failed to create pipeline layout with error: " + std::to_string(result));
 
@@ -274,12 +275,12 @@ void RenderPass::createGraphicsPipeline(const Device& device, VkExtent2D extent)
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineInfo.basePipelineIndex = -1;
 
-	result = vkCreateGraphicsPipelines(device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_graphicsPipeline);
+	result = vkCreateGraphicsPipelines(core::App::instance().getDevice().getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_graphicsPipeline);
 	if (result != VK_SUCCESS)
 		THROW("failed to create graphics pipeline with error: " + std::to_string(result))
 
-	vkDestroyShaderModule(device.getDevice(), fragShaderModule, nullptr);
-	vkDestroyShaderModule(device.getDevice(), vertShaderModule, nullptr);
+	vkDestroyShaderModule(core::App::instance().getDevice().getDevice(), fragShaderModule, nullptr);
+	vkDestroyShaderModule(core::App::instance().getDevice().getDevice(), vertShaderModule, nullptr);
 }
 
 VkShaderModule RenderPass::createShaderModule(const std::vector<char>& code, const Device& device)
@@ -290,7 +291,7 @@ VkShaderModule RenderPass::createShaderModule(const std::vector<char>& code, con
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 	VkShaderModule shaderModule;
-	VkResult result = vkCreateShaderModule(device.getDevice(), &createInfo, nullptr, &shaderModule);
+	VkResult result = vkCreateShaderModule(core::App::instance().getDevice().getDevice(), &createInfo, nullptr, &shaderModule);
 	if (result != VK_SUCCESS)
 		THROW("failed to create shader module with error: " + std::to_string(result))
 

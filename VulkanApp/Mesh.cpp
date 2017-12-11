@@ -1,8 +1,5 @@
 #include "Mesh.h"
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -12,57 +9,14 @@
 
 #include "RenderPass.h"
 #include "Logging.h"
+#include "App.h"
 
-std::vector<Mesh::Vertex> Mesh::vertices;
-std::vector<uint32_t> Mesh::indices;
-
-Mesh::Mesh(const char* obj)
+Mesh::Mesh(Model* model, Texture* texture) : _model { model }, _texture { texture }
 {
-	if (vertices.size() > 0)
-		return;
-
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string err;
-
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, obj))
-		THROW("failed to load obj with error: " + err)
-
-	std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
-	uniqueVertices.reserve(attrib.vertices.size());
-	vertices.reserve(attrib.vertices.size());
-	indices.reserve(attrib.vertices.size());
-	for (const auto& shape : shapes) {
-		for (const auto& index : shape.mesh.indices) {
-			Vertex vertex = {};
-
-			vertex.pos = {
-				attrib.vertices[3 * index.vertex_index + 0],
-				attrib.vertices[3 * index.vertex_index + 1],
-				attrib.vertices[3 * index.vertex_index + 2]
-			};
-
-			vertex.uv = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
-
-			vertex.color = { 1.f, 1.f, 1.f };
-
-			if (uniqueVertices.count(vertex) == 0) {
-				uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-				vertices.push_back(vertex);
-			}
-
-			indices.push_back(uniqueVertices[vertex]);
-		}
-	}
 }
 
 Mesh::~Mesh()
-{
-	
+{	
 }
 
 void Mesh::init(const Device&)
@@ -71,20 +25,8 @@ void Mesh::init(const Device&)
 
 void Mesh::clean(const Device& device)
 {
-	vkDestroyBuffer(device.getDevice(), _uniformBuffer, nullptr);
-	vkFreeMemory(device.getDevice(), _uniformBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.getDevice(), _indexBuffer, nullptr);
-	vkFreeMemory(device.getDevice(), _indexBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.getDevice(), _vertexBuffer, nullptr);
-	vkFreeMemory(device.getDevice(), _vertexBufferMemory, nullptr);
-
-	vkDestroySampler(device.getDevice(), _textureSampler, nullptr);
-	vkDestroyImageView(device.getDevice(), _textureImageView, nullptr);
-
-	vkDestroyImage(device.getDevice(), _textureImage, nullptr);
-	vkFreeMemory(device.getDevice(), _textureImageMemory, nullptr);
+	vkDestroyBuffer(core::App::instance().getDevice().getDevice(), _uniformBuffer, nullptr);
+	vkFreeMemory(core::App::instance().getDevice().getDevice(), _uniformBufferMemory, nullptr);
 }
 
 void Mesh::update(const Device& device, float deltaTime, float d)
@@ -99,7 +41,7 @@ void Mesh::update(const Device& device, float deltaTime, float d)
 	ubo.proj[1][1] *= -1;
 
 	void* data;
-	vkMapMemory(device.getDevice(), _uniformBufferMemory, 0, sizeof(ubo), 0, &data);
+	vkMapMemory(core::App::instance().getDevice().getDevice(), _uniformBufferMemory, 0, sizeof(ubo), 0, &data);
 	memcpy(data, &ubo, sizeof(ubo));
-	vkUnmapMemory(device.getDevice(), _uniformBufferMemory);
+	vkUnmapMemory(core::App::instance().getDevice().getDevice(), _uniformBufferMemory);
 }
